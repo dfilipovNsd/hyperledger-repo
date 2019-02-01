@@ -144,17 +144,7 @@ func (t *CIBContract) Invoke(stub shim.ChaincodeStubInterface) pb.Response {
 	logger.Infof("invoke is running %v", function)
 	if function == "addContract"+"_"+CIBContractNumVer {
 		return t.addContract(stub, args)
-	} else if function == "contractVersion"+"_"+CIBContractNumVer {
-		return shim.Success([]byte("Version chaincode: " + CIBContractVersion))
-	} else if function == "viewContract"+"_"+CIBContractNumVer {
-		return t.viewContract(stub, args[0])
-	} else if function == "getBlockHistory"+"_"+CIBContractNumVer {
-		return t.getBlockHistory(stub, args[0])
-	} else if function == "addSignToContract"+"_"+CIBContractNumVer {
-		return t.addSignToContract(stub, args)
-	} else if function == "getTestContract"+"_"+CIBContractNumVer {
-		return t.getTestContract(stub)
-	}
+	} 
 
 	return shim.Error("Received unknown function invocation")
 }
@@ -179,37 +169,6 @@ func (t *CIBContract) addContract(stub shim.ChaincodeStubInterface, args []strin
 	if len(args[0]) <= 0 {
 		return pb.Response{Status: 403, Message: "DealNum must be a non-empty"}
 	}
-
-	// dealNum - args[0]
-	// dealDate - args[1]
-	// leg1Date - args[2]
-	// leg2Date - args[3]
-	// amount - args[4]
-	// currency - args[5]
-	// leg1DealType - args[6]
-	// threshold1 - args[7]
-	// threshold2 - args[8]
-	// repoRate - args[9]
-	// intMeth - args[10]
-	// collateralReceiver.Code - args[11]
-	// collateralReceiver.ShortName - args[12]
-	// collateralGiver.Code - args[13]
-	// collateralGiver.ShortName - args[14]
-	// masterAgreement.Code - args[15]
-	// masterAgreement.Date - args[16]
-	// collateral.SecurityCode - args[17]
-	// collateral.SecurityIsin - args[18]
-	// collateral.SecurityName - args[19]
-	// collateral.Quantity - args[20]
-	// collateral.Discount - args[21]
-	// collateral.PriceTypesPriority - args[22]
-	// suoParams.Reuse - args[23]
-	// suoParams.ReturnVar - args[24]
-	// suoParams.ShiftTermDate - args[25]
-	// suoParams.AutoMargin - args[26]
-	// WhoMadeChanges - args[27] (only history)
-	// CommitmentID1 - args[28]
-	// CommitmentID2 - args[29]
 
 	dealNum := strings.TrimSpace(args[0])
 	dealDate := strings.TrimSpace(args[1])
@@ -353,65 +312,4 @@ func (t *CIBContract) createIndex(stub shim.ChaincodeStubInterface, indexName st
 	value := []byte{0x00}
 	stub.PutState(compositeKey, value)
 	return nil
-}
-
-func (t *CIBContract) getTestContract(stub shim.ChaincodeStubInterface) pb.Response {
-	return shim.Success([]byte("Hello, world!"))
-}
-
-func (t *CIBContract) viewContract(stub shim.ChaincodeStubInterface, contrID string) pb.Response {
-	var err error
-	var valBytes []byte
-
-	valBytes, err = stub.GetState(contrID)
-
-	if err != nil {
-		return pb.Response{Status: 403, Message: "Failed to get contract " + contrID}
-	} else if valBytes == nil {
-		return pb.Response{Status: 404, Message: "Contract does not exist: " + contrID}
-	}
-
-	return shim.Success(valBytes)
-}
-
-func (t *CIBContract) getBlockHistory(stub shim.ChaincodeStubInterface, contrID string) pb.Response {
-	type AuditHistory struct {
-		TxId   string       `json:"txId"`
-		TxDate string       `json:"txDate"`
-		Value  contractType `json:"value"`
-	}
-	var history []AuditHistory
-	var contract contractType
-
-	if len(contrID) <= 0 {
-		return shim.Error("ContrID must be a non-empty string")
-	}
-
-	resultsIterator, err := stub.GetHistoryForKey(contrID)
-	if err != nil {
-		return shim.Error(err.Error())
-	}
-	defer resultsIterator.Close()
-
-	for resultsIterator.HasNext() {
-		historyData, err := resultsIterator.Next()
-		if err != nil {
-			return shim.Error(err.Error())
-		}
-		var tx AuditHistory
-		tx.TxId = historyData.TxId
-		tx.TxDate = time.Unix(historyData.Timestamp.Seconds, int64(historyData.Timestamp.Nanos)).String()
-		json.Unmarshal(historyData.Value, &contract)
-		if historyData.Value == nil {
-			var emptyContractType contractType
-			tx.Value = emptyContractType
-		} else {
-			json.Unmarshal(historyData.Value, &contract)
-			tx.Value = contract
-		}
-		history = append(history, tx)
-	}
-
-	historyAsBytes, _ := json.Marshal(history)
-	return shim.Success(historyAsBytes)
 }
