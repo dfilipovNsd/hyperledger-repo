@@ -156,10 +156,6 @@ func (t *CIBContract) Invoke(stub shim.ChaincodeStubInterface) pb.Response {
 		return t.addHistoryToContract(stub, args)
 	} else if function == "addSignToContract"+"_"+CIBContractNumVer {
 		return t.addSignToContract(stub, args)
-	} else if function == "addObligationStatus"+"_"+CIBContractNumVer {
-		return t.addObligationStatus(stub, args)
-	} else if function == "updContract"+"_"+CIBContractNumVer {
-		return t.updContract(stub, args)
 	} else if function == "closeContract"+"_"+CIBContractNumVer {
 		return t.closeContract(stub, args)
 	} else if function == "getTestContract"+"_"+CIBContractNumVer {
@@ -581,106 +577,4 @@ func (t *CIBContract) addHistoryToContract(stub shim.ChaincodeStubInterface, arg
 	}
 
 	return shim.Success([]byte("Contract " + contrID + " successfully updated (add history)"))
-}
-
-func (t *CIBContract) addObligationStatus(stub shim.ChaincodeStubInterface, args []string) pb.Response {
-	var err error
-
-	if len(args) != 6 {
-		return pb.Response{Status: 403, Message: "Incorrect number of arguments. Expecting 6"}
-	}
-
-	contrID := strings.TrimSpace(args[0])
-	valBytes, err := stub.GetState(contrID)
-
-	if err != nil {
-		return pb.Response{Status: 403, Message: "Failed to get contract " + contrID}
-	} else if valBytes == nil {
-		return pb.Response{Status: 404, Message: "Contract does not exist: " + contrID}
-	}
-
-	var contract contractType
-	err = json.Unmarshal(valBytes, &contract)
-	if err != nil {
-		return shim.Error(err.Error())
-	}
-
-	for i, obligation := range contract.ObligationList {
-		if obligation.CommitmentID == strings.TrimSpace(args[1]) {
-			contract.ObligationList[i].DateTime = strings.TrimSpace(args[2])
-			contract.ObligationList[i].WhoMadeChanges = strings.TrimSpace(args[3])
-			contract.ObligationList[i].TextDescription = strings.TrimSpace(args[4])
-			performanceStatus, err := strconv.Atoi(strings.TrimSpace(args[5]))
-			if err != nil {
-				return pb.Response{Status: 403, Message: "Expected integer value for performance status"}
-			}
-			contract.ObligationList[i].PerformanceStatus = performanceStatus
-			break
-		}
-	}
-
-	ht := historyType{strings.TrimSpace(args[2]), "Add obligation status", strings.TrimSpace(args[3]), strings.TrimSpace(args[4])}
-	contract.History = append(contract.History, ht)
-
-	contractJSONasBytes, err := json.Marshal(&contract)
-	if err != nil {
-		return shim.Error(err.Error())
-	}
-
-	err = stub.PutState(contrID, contractJSONasBytes)
-	if err != nil {
-		return shim.Error(err.Error())
-	}
-
-	return shim.Success([]byte("Contract " + contrID + " successfully updated (add obligation status)"))
-}
-
-func (t *CIBContract) updContract(stub shim.ChaincodeStubInterface, args []string) pb.Response {
-	var err error
-
-	if len(args) != 5 {
-		return pb.Response{Status: 403, Message: "Incorrect number of arguments. Expecting 5"}
-	}
-
-	contrID := strings.TrimSpace(args[0])
-	valBytes, err := stub.GetState(contrID)
-
-	if err != nil {
-		return pb.Response{Status: 403, Message: "Failed to get contract " + contrID}
-	} else if valBytes == nil {
-		return pb.Response{Status: 404, Message: "Contract does not exist: " + contrID}
-	}
-
-	var contract contractType
-	err = json.Unmarshal(valBytes, &contract)
-	if err != nil {
-		return shim.Error(err.Error())
-	}
-
-	if contract.Status == 1 {
-		if strings.TrimSpace(args[4]) != "0" {
-			quantitySecurities, err := strconv.Atoi(strings.TrimSpace(args[4]))
-			if err != nil {
-				return pb.Response{Status: 403, Message: "Expected integer value for quantity securities"}
-			}
-			contract.Collateral.Quantity = contract.Collateral.Quantity + quantitySecurities
-		}
-
-		ht := historyType{strings.TrimSpace(args[1]), "Update Contract (mount(obligation) or add quantity securities to Contract)", strings.TrimSpace(args[2]), "amount: " + strings.TrimSpace(args[3]) + ", quantity securities: " + strings.TrimSpace(args[4])}
-		contract.History = append(contract.History, ht)
-
-		contractJSONasBytes, err := json.Marshal(&contract)
-		if err != nil {
-			return shim.Error(err.Error())
-		}
-
-		err = stub.PutState(contrID, contractJSONasBytes)
-		if err != nil {
-			return shim.Error(err.Error())
-		}
-
-		return shim.Success([]byte("Contract " + contrID + " successfully updated (amount(obligation) or add quantity securities to Contract)"))
-	} else {
-		return pb.Response{Status: 403, Message: "Contract : " + contrID + " not updated, because it not confirmed"}
-	}
 }
