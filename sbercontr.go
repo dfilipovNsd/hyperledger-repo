@@ -1,8 +1,3 @@
-//Copyright Sberbank 2018 All Rights Reserved
-//Project: REPO.
-//Project Customer: CIB
-//Developer: Baykov D.V.
-
 package main
 
 import (
@@ -159,12 +154,8 @@ func (t *CIBContract) Invoke(stub shim.ChaincodeStubInterface) pb.Response {
 		return t.viewListContracts(stub, args)
 	} else if function == "addHistoryToContract"+"_"+CIBContractNumVer {
 		return t.addHistoryToContract(stub, args)
-	} else if function == "getHistoryFromContract"+"_"+CIBContractNumVer {
-		return t.getHistoryFromContract(stub, args[0])
 	} else if function == "addSignToContract"+"_"+CIBContractNumVer {
 		return t.addSignToContract(stub, args)
-	} else if function == "getObligationList"+"_"+CIBContractNumVer {
-		return t.getObligationList(stub, args[0])
 	} else if function == "addObligationStatus"+"_"+CIBContractNumVer {
 		return t.addObligationStatus(stub, args)
 	} else if function == "updContract"+"_"+CIBContractNumVer {
@@ -693,66 +684,3 @@ func (t *CIBContract) updContract(stub shim.ChaincodeStubInterface, args []strin
 		return pb.Response{Status: 403, Message: "Contract : " + contrID + " not updated, because it not confirmed"}
 	}
 }
-
-func (t *CIBContract) getObligationList(stub shim.ChaincodeStubInterface, contrID string) pb.Response {
-	var err error
-	var valBytes []byte
-
-	if len(contrID) == 0 {
-		return pb.Response{Status: 403, Message: "Incorrect number of arguments. Expecting 1"}
-	}
-
-	valBytes, err = stub.GetState(contrID)
-
-	if err != nil {
-		return pb.Response{Status: 403, Message: "Failed to get contract " + contrID}
-	} else if valBytes == nil {
-		return pb.Response{Status: 404, Message: "Contract does not exist: " + contrID}
-	}
-
-	var contract contractType
-	err = json.Unmarshal(valBytes, &contract)
-	if err != nil {
-		return shim.Error(err.Error())
-	}
-
-	ol := contract.ObligationList
-	contractJSONasBytes, err := json.Marshal(&ol)
-	if err != nil {
-		return shim.Error(err.Error())
-	}
-
-	return shim.Success(contractJSONasBytes)
-}
-
-func (t *CIBContract) getHistoryFromContract(stub shim.ChaincodeStubInterface, contrID string) pb.Response {
-	var err error
-	var valBytes []byte
-
-	if len(contrID) == 0 {
-		return pb.Response{Status: 403, Message: "Incorrect number of arguments. Expecting 1"}
-	}
-
-	valBytes, err = stub.GetState(contrID)
-
-	if err != nil {
-		return pb.Response{Status: 403, Message: "Failed to get contract " + contrID}
-	} else if valBytes == nil {
-		return pb.Response{Status: 404, Message: "Contract does not exist: " + contrID}
-	}
-
-	var contract contractType
-	err = json.Unmarshal(valBytes, &contract)
-	if err != nil {
-		return shim.Error(err.Error())
-	}
-
-	ht := contract.History
-	contractJSONasBytes, err := json.Marshal(&ht)
-	if err != nil {
-		return shim.Error(err.Error())
-	}
-
-	return shim.Success(contractJSONasBytes)
-}
-
